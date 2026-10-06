@@ -26,9 +26,10 @@ resource "aws_kms_alias" "velero" {
   target_key_id = aws_kms_key.velero.key_id
 }
 
-#checkov:skip=CKV_AWS_18: access logging not required for backup bucket in this platform
-#checkov:skip=CKV2_AWS_62: event notifications not required for backup bucket
 resource "aws_s3_bucket" "velero" {
+  #checkov:skip=CKV_AWS_18: access logging not required for backup bucket in this platform
+  #checkov:skip=CKV2_AWS_62: event notifications not required for backup bucket
+  #checkov:skip=CKV_AWS_144: cross-region replication not required for backup bucket in this platform
   bucket        = "${var.cluster_name}-velero-backups-${var.aws_account_id}"
   force_destroy = true
   tags = {

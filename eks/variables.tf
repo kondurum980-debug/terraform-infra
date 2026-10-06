@@ -44,12 +44,6 @@ variable "eks_version" {
   }
 }
 
-variable "isControlPlanePrivate" {
-  description = "When true, the EKS API endpoint is private-only and not accessible from the public internet. Management nodes remain in the private (node) subnets of the VPC."
-  type        = bool
-  default     = false
-}
-
 ################################################################################
 # Networking
 ################################################################################
