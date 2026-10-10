@@ -121,20 +121,8 @@ pipeline {
           withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awsCred']]) {
             sh '''
                 set -euo pipefail
-
-                echo "Checking AWS identity..."
-                aws sts get-caller-identity
-
-                echo "Checking S3 bucket access..."
-                aws s3api head-bucket \
-                  --bucket terraform-infra-state-backend222 \
-                  --region ap-south-1
-
-                echo "Checking VPC state file access..."
-                aws s3api head-object \
-                  --bucket terraform-infra-state-backend222 \
-                  --key infra/vpc/terraform.tfstate \
-                  --region ap-south-1
+                terraform init -input=false
+                terraform workspace select "$ENV" || terraform workspace new "$ENV"
             '''
           }
         }
