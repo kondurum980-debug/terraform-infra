@@ -127,12 +127,12 @@ pipeline {
 
                 echo "Checking S3 bucket access..."
                 aws s3api head-bucket \
-                  --bucket terraform-infra-state-backend \
+                  --bucket terraform-infra-state-backend222 \
                   --region ap-south-1
 
                 echo "Checking VPC state file access..."
                 aws s3api head-object \
-                  --bucket terraform-infra-state-backend \
+                  --bucket terraform-infra-state-backend222 \
                   --key infra/vpc/terraform.tfstate \
                   --region ap-south-1
             '''
