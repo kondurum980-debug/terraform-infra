@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'terraform' }
+  agent none
 
   options {
     //disableConcurrentBuilds()
