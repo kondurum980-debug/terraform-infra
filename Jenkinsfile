@@ -120,7 +120,7 @@ pipeline {
         dir("${params.INFRA}") {
           withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awsCred']]) {
             sh '''
-              set -euo pipefail
+              aws sts get-caller-identity
               terraform init -input=false
               terraform workspace select "$ENV" || terraform workspace new "$ENV"
             '''
