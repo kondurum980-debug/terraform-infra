@@ -135,6 +135,7 @@ pipeline {
       }
     }
     
+    
 stage('Import Existing IAM Resources') {
   when {
     expression { params.INFRA == 'iam' }
@@ -145,47 +146,62 @@ stage('Import Existing IAM Resources') {
         sh '''
           set -euo pipefail
 
-          echo "Backing up current Terraform state..."
+          echo "===== Verify AWS Account ====="
+          aws sts get-caller-identity
+
+          echo "===== Back Up Terraform State ====="
           terraform state pull > "$WORKSPACE/terraform-state-backup.json"
 
-          echo "Importing existing IAM roles..."
+          import_if_missing() {
+            ADDRESS="$1"
+            RESOURCE_ID="$2"
 
-          terraform import 'module.AppDeployerRole.aws_iam_role.this[0]' AppDeployerRole
-          terraform import 'module.ControlPlaneBaseRole.aws_iam_role.this[0]' ControlPlaneBaseRole
-          terraform import 'module.GHActionsRole[0].aws_iam_role.this[0]' GHActionsRole
-          terraform import 'module.GHAppDeployerRole.aws_iam_role.this[0]' GHAppDeployerRole
-          terraform import 'module.IamProfilesRole.aws_iam_role.this[0]' IamProfilesRole
-          terraform import 'module.PlatformObservabilityBaseRole.aws_iam_role.this[0]' PlatformObservabilityBaseRole
-          terraform import 'module.PlatformStorageRole.aws_iam_role.this[0]' PlatformStorageRole
-          terraform import 'module.PlatformVPCRole.aws_iam_role.this[0]' PlatformVPCRole
+            if terraform state show "$ADDRESS" >/dev/null 2>&1; then
+              echo "Already tracked: $ADDRESS"
+            else
+              echo "Importing: $ADDRESS"
+              terraform import -input=false "$ADDRESS" "$RESOURCE_ID"
+            fi
+          }
 
-          echo "Importing existing IAM policies..."
+          echo "===== Import IAM Roles ====="
 
-          terraform import aws_iam_policy.AppDeployerRolePolicy arn:aws:iam::603033204503:policy/AppDeployerRolePolicy
-          terraform import aws_iam_policy.ControlPlaneBaseRolePolicy arn:aws:iam::603033204503:policy/ControlPlaneBaseRolePolicy
-          terraform import aws_iam_policy.IamProfilesRolePolicy arn:aws:iam::603033204503:policy/IamProfilesRolePolicy
-          terraform import aws_iam_policy.PlatformObservabilityBaseRolePolicy arn:aws:iam::603033204503:policy/PlatformObservabilityBaseRolePolicy
-          terraform import aws_iam_policy.PlatformStorageRolePolicy arn:aws:iam::603033204503:policy/PlatformStorageRolePolicy
-          terraform import aws_iam_policy.PlatformVPCRolePolicy arn:aws:iam::603033204503:policy/PlatformVPCRolePolicy
-          terraform import 'aws_iam_policy.assume_target_accounts[0]' arn:aws:iam::603033204503:policy/assume-target-account-roles
-          terraform import aws_iam_policy.S3StateBucketPolicy arn:aws:iam::603033204503:policy/S3StateBucketPolicy
+          import_if_missing 'module.AppDeployerRole.aws_iam_role.this[0]' 'AppDeployerRole'
+          import_if_missing 'module.ControlPlaneBaseRole.aws_iam_role.this[0]' 'ControlPlaneBaseRole'
+          import_if_missing 'module.GHActionsRole[0].aws_iam_role.this[0]' 'GHActionsRole'
+          import_if_missing 'module.GHAppDeployerRole.aws_iam_role.this[0]' 'GHAppDeployerRole'
+          import_if_missing 'module.IamProfilesRole.aws_iam_role.this[0]' 'IamProfilesRole'
+          import_if_missing 'module.PlatformObservabilityBaseRole.aws_iam_role.this[0]' 'PlatformObservabilityBaseRole'
+          import_if_missing 'module.PlatformStorageRole.aws_iam_role.this[0]' 'PlatformStorageRole'
+          import_if_missing 'module.PlatformVPCRole.aws_iam_role.this[0]' 'PlatformVPCRole'
 
-          echo "Importing GitHub Actions OIDC provider..."
+          echo "===== Import IAM Policies ====="
+
+          import_if_missing 'aws_iam_policy.AppDeployerRolePolicy' 'arn:aws:iam::603033204503:policy/AppDeployerRolePolicy'
+          import_if_missing 'aws_iam_policy.ControlPlaneBaseRolePolicy' 'arn:aws:iam::603033204503:policy/ControlPlaneBaseRolePolicy'
+          import_if_missing 'aws_iam_policy.IamProfilesRolePolicy' 'arn:aws:iam::603033204503:policy/IamProfilesRolePolicy'
+          import_if_missing 'aws_iam_policy.PlatformObservabilityBaseRolePolicy' 'arn:aws:iam::603033204503:policy/PlatformObservabilityBaseRolePolicy'
+          import_if_missing 'aws_iam_policy.PlatformStorageRolePolicy' 'arn:aws:iam::603033204503:policy/PlatformStorageRolePolicy'
+          import_if_missing 'aws_iam_policy.PlatformVPCRolePolicy' 'arn:aws:iam::603033204503:policy/PlatformVPCRolePolicy'
+          import_if_missing 'aws_iam_policy.assume_target_accounts[0]' 'arn:aws:iam::603033204503:policy/assume-target-account-roles'
+          import_if_missing 'aws_iam_policy.S3StateBucketPolicy' 'arn:aws:iam::603033204503:policy/S3StateBucketPolicy'
+
+          echo "===== Import GitHub Actions OIDC Provider ====="
 
           OIDC_ARN=$(aws iam list-open-id-connect-providers \
             --query "OpenIDConnectProviderList[?contains(Arn, 'token.actions.githubusercontent.com')].Arn | [0]" \
             --output text)
 
           if [ -z "$OIDC_ARN" ] || [ "$OIDC_ARN" = "None" ]; then
-            echo "GitHub Actions OIDC provider was not found."
+            echo "ERROR: GitHub Actions OIDC provider not found."
             exit 1
           fi
 
-          terraform import \
+          import_if_missing \
             'module.iam_oidc_provider.aws_iam_openid_connect_provider.this[0]' \
             "$OIDC_ARN"
 
-          echo "All requested imports completed."
+          echo "===== Final Terraform State ====="
           terraform state list
         '''
       }
