@@ -134,6 +134,65 @@ pipeline {
         }
       }
     }
+    ```groovy
+stage('Import Existing IAM Resources') {
+  when {
+    expression { params.INFRA == 'iam' }
+  }
+  steps {
+    dir("${params.INFRA}") {
+      withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'awsCred']]) {
+        sh '''
+          set -euo pipefail
+
+          echo "Backing up current Terraform state..."
+          terraform state pull > "$WORKSPACE/terraform-state-backup.json"
+
+          echo "Importing existing IAM roles..."
+
+          terraform import 'module.AppDeployerRole.aws_iam_role.this[0]' AppDeployerRole
+          terraform import 'module.ControlPlaneBaseRole.aws_iam_role.this[0]' ControlPlaneBaseRole
+          terraform import 'module.GHActionsRole[0].aws_iam_role.this[0]' GHActionsRole
+          terraform import 'module.GHAppDeployerRole.aws_iam_role.this[0]' GHAppDeployerRole
+          terraform import 'module.IamProfilesRole.aws_iam_role.this[0]' IamProfilesRole
+          terraform import 'module.PlatformObservabilityBaseRole.aws_iam_role.this[0]' PlatformObservabilityBaseRole
+          terraform import 'module.PlatformStorageRole.aws_iam_role.this[0]' PlatformStorageRole
+          terraform import 'module.PlatformVPCRole.aws_iam_role.this[0]' PlatformVPCRole
+
+          echo "Importing existing IAM policies..."
+
+          terraform import aws_iam_policy.AppDeployerRolePolicy arn:aws:iam::603033204503:policy/AppDeployerRolePolicy
+          terraform import aws_iam_policy.ControlPlaneBaseRolePolicy arn:aws:iam::603033204503:policy/ControlPlaneBaseRolePolicy
+          terraform import aws_iam_policy.IamProfilesRolePolicy arn:aws:iam::603033204503:policy/IamProfilesRolePolicy
+          terraform import aws_iam_policy.PlatformObservabilityBaseRolePolicy arn:aws:iam::603033204503:policy/PlatformObservabilityBaseRolePolicy
+          terraform import aws_iam_policy.PlatformStorageRolePolicy arn:aws:iam::603033204503:policy/PlatformStorageRolePolicy
+          terraform import aws_iam_policy.PlatformVPCRolePolicy arn:aws:iam::603033204503:policy/PlatformVPCRolePolicy
+          terraform import 'aws_iam_policy.assume_target_accounts[0]' arn:aws:iam::603033204503:policy/assume-target-account-roles
+          terraform import aws_iam_policy.S3StateBucketPolicy arn:aws:iam::603033204503:policy/S3StateBucketPolicy
+
+          echo "Importing GitHub Actions OIDC provider..."
+
+          OIDC_ARN=$(aws iam list-open-id-connect-providers \
+            --query "OpenIDConnectProviderList[?contains(Arn, 'token.actions.githubusercontent.com')].Arn | [0]" \
+            --output text)
+
+          if [ -z "$OIDC_ARN" ] || [ "$OIDC_ARN" = "None" ]; then
+            echo "GitHub Actions OIDC provider was not found."
+            exit 1
+          fi
+
+          terraform import \
+            'module.iam_oidc_provider.aws_iam_openid_connect_provider.this[0]' \
+            "$OIDC_ARN"
+
+          echo "All requested imports completed."
+          terraform state list
+        '''
+      }
+    }
+  }
+}
+```
 
     stage('Validate') {
       steps {
