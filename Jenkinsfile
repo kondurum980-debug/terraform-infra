@@ -283,24 +283,17 @@ pipeline {
                              */
 
                             import_if_missing() {
-                                ADDRESS="$1"
-                                RESOURCE_ID="$2"
+    ADDRESS="$1"
+    RESOURCE_ID="$2"
 
-                                if terraform state show "$ADDRESS" >/dev/null 2>&1; then
-                                    echo "Already tracked: $ADDRESS"
-                                else
-                                    echo "Importing: $ADDRESS"
+    if terraform state show "$ADDRESS" >/dev/null 2>&1; then
+        echo "Already tracked: $ADDRESS"
+    else
+        echo "Importing: $ADDRESS"
 
-                                    terraform import \
-                                        -input=false \
-                                        -var-file="environments/${ENV_NAME}.auto.tfvars.json" \
-                                        -var="aws_region=${AWS_DEFAULT_REGION}" \
-                                        -var="aws_account_id=${ACCOUNT_ID}" \
-                                        -var="app_env=${ENV_NAME}" \
-                                        "$ADDRESS" \
-                                        "$RESOURCE_ID"
-                                fi
-                            }
+        terraform import -input=false "$ADDRESS" "$RESOURCE_ID"
+    fi
+}
 
                             echo "===== Import IAM Roles ====="
 
