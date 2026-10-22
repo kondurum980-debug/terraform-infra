@@ -123,6 +123,8 @@ pipeline {
                 set -euo pipefail
                 terraform init -input=false
                 terraform workspace select "$ENV" || terraform workspace new "$ENV"
+                terraform workspace show
+                terraform state list
             '''
           }
         }
