@@ -134,7 +134,7 @@ pipeline {
         }
       }
     }
-    ```groovy
+    
 stage('Import Existing IAM Resources') {
   when {
     expression { params.INFRA == 'iam' }
@@ -192,7 +192,7 @@ stage('Import Existing IAM Resources') {
     }
   }
 }
-```
+
 
     stage('Validate') {
       steps {
