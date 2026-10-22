@@ -123,7 +123,11 @@ pipeline {
                 set -euo pipefail
                 terraform init -input=false
                 terraform workspace select "$ENV" || terraform workspace new "$ENV"
-                terraform workspace show
+                echo "===== Current Workspace =====" 
+                terraform workspace show 
+                echo "===== Backup Terraform State =====" 
+                terraform state pull > "$WORKSPACE/terraform-state-backup.json" 
+                echo "===== Current Terraform Resources =====" 
                 terraform state list
             '''
           }
